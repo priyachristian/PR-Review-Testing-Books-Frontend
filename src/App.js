@@ -11,7 +11,6 @@ import AppLayout from '@/components/layout/AppLayout';
 import PrivateLayout from '@/components/layout/PrivateLayout';
 import RouteWithTitle from '@/components/layout/RouteWithTitle';
 import UpgradeRequiredModal from '@/components/ui/common/UpgradeRequiredModal';
-import AdminRoutes from '@/routes/AdminRoutes';
 import DocumentPdfPreview from '@/pages/DocumentPdfPreview';
 import ShortcutsManager from '@/components/ShortcutsManager';
 const DesignSystem = lazy(() => import('@/pages/DesignSystem'));
