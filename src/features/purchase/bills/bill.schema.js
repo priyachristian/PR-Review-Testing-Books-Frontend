@@ -5,7 +5,7 @@ export const billsValidateSchema = (autoGenerate, isSplitSessionActive) => {
     divisionId: Yup.string().required('Please select the division'),
     branchId: Yup.string().required('Please select the branch'),
     warehouseId: Yup.string().required('Please select the warehouse'),
-    vendor: Yup.string().required('Please select the vendor'),
+    vendor: Yup.string().optional(),
     billDate: Yup.string().required('Please select the bill date'),
     dueDate: Yup.string().required('Please select the due date'),
     billId: autoGenerate ? Yup.string().notRequired() : Yup.string().trim().required('Please enter the bill number'),
