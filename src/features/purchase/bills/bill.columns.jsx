@@ -4,6 +4,7 @@ import { Tag, Popover } from '@/components/AntDComponent';
 import StatusBadge from '@/components/ui/badge/StatusBadge';
 import { dateFormateForUi } from '@/utils/services';
 import { getDateColumn, getAmountCoulmn, TruncatedCell, getOverflowListColumn, getQuantitySummaryColumn } from '@/utils/tableColumns';
+import { BILL_STATUS, BACKEND_ENUM } from '@/utils/constants';
 
 const paymentMadeOverflowList = {
   getKey: (item, index) => `${item.id || item._id}-${index}`,
