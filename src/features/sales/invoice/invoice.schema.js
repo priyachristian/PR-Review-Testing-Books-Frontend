@@ -7,7 +7,7 @@ export const invoiceValidateSchema = (autoGenerate, isSplitSessionActive) => {
     divisionId: Yup.string().required('Please select the division'),
     branchId: Yup.string().required('Please select the branch'),
     warehouseId: Yup.string().required('Please select the warehouse'),
-    customerId: Yup.string().optional().nullable(),
+    customerId: Yup.string().required('Please select the customer'),
     invoiceDate: Yup.string().required('Please select the invoice date'),
     invoiceId: autoGenerate
       ? Yup.string().notRequired().max(NIC_DOC_NUMBER_MAX_LENGTH, `Invoice number cannot be more than ${NIC_DOC_NUMBER_MAX_LENGTH} characters`)
