@@ -26,8 +26,7 @@ export const paymentReceivedValidateSchema = autoGenerate => {
     receivedAmount: Yup.number()
       .transform((v, orig) => (orig === '' || orig == null ? undefined : v))
       .typeError('Please enter a valid amount')
-      .required('Please enter the received amount')
-      .moreThan(0, 'Received amount must be greater than 0'),
+      .required('Please enter the received amount'),
     invoices: Yup.array(),
     amountReceived: Yup.mixed().notRequired(),
   });
