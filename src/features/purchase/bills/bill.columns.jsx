@@ -208,7 +208,7 @@ export const billExportColumn = () => [
     getExportValue: bill => bill?.addedBy || '',
   },
   {
-    title: 'Updated By',
+    title: 'Updated By ',
     getExportValue: bill => bill?.updatedBy || '',
   },
 ];
