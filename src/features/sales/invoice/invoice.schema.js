@@ -29,7 +29,7 @@ export const invoiceValidateSchema = (autoGenerate, isSplitSessionActive) => {
         itemId: Yup.string().required('Please select the item'),
         finalQty: Yup.number().optional().nullable(),
         quantity: !isSplitSessionActive
-          ? Yup.number().typeError('Please enter a valid quantity').required('Please enter the quantity').positive('Quantity must be greater than zero')
+          ? Yup.number().typeError('Please enter a valid quantity').required('Please enter the quantity').min(0, 'Quantity must be greater than zero')
           : Yup.number()
               .typeError('Please enter a valid quantity')
               .nullable()
