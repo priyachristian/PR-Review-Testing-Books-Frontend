@@ -1,0 +1,10 @@
+node_modules
+dist
+build
+.vite
+.vscode
+coverage
+public
+.env
+*.min.js
+.github/workflows/*

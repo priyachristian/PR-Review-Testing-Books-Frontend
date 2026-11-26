@@ -1,0 +1,57 @@
+name: Deploy to staging
+
+on:
+  push:
+    branches: [staging]
+
+permissions:
+  contents: read
+
+# Never cancel a deploy halfway; queue the next one instead.
+concurrency:
+  group: deploy-staging-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # Skip unless the pusher may release to staging. Keep in sync with guard-staging.yml.
+    if: contains(fromJSON('["smit9313", "harsh-abss"]'), github.actor)
+    runs-on: [self-hosted, abss-staging]
+    timeout-minutes: 30
+    steps:
+      # ---- merge-flow gate ----
+      # Flow is env/test -> staging -> main. Every non-merge commit on staging must already
+      # exist on env/test. If any skipped env/test, stop here: nothing is built or deployed.
+      # Fix by promoting properly (env/test first); this then passes on the next run.
+      - name: Verify staging was promoted from env/test
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.repos.compareCommitsWithBasehead({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              basehead: `env/test...${context.sha}`,
+            });
+            // Merge commits are how promotion happens; release-guard[bot] commits are
+            // automatic reverts made by the guard workflows. Neither counts as skipping.
+            const skipped = data.commits.filter(
+              c => c.parents.length < 2 && c.commit.author?.name !== 'release-guard[bot]',
+            );
+            if (skipped.length) {
+              const list = skipped
+                .slice(0, 20)
+                .map(c => `  ${c.sha.slice(0, 7)} ${c.commit.message.split('\n')[0]}`)
+                .join('\n');
+              core.setFailed(
+                `staging has ${skipped.length} commit(s) that are not on env/test - they skipped the ` +
+                  `env/test -> staging -> main flow, so this deploy is blocked:\n${list}\n` +
+                  `Merge them into env/test first, then promote env/test again.`,
+              );
+            } else {
+              core.info('✅ Every change on staging came through env/test.');
+            }
+
+      - name: Deploy ${{ github.sha }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: /Users/abss/staging/scripts/deploy.sh "${{ github.event.repository.name }}" "${{ github.sha }}"

@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.item-table-input {
+  @apply border border-transparent focus:border-solid hover:border-solid hover:border-primary focus:border-primary outline-none rounded;
+}
+
+.converted-to-badge {
+  @apply bg-green-100 text-green-800 py-[3px] px-[12px] rounded-full w-fit font-semibold cursor-pointer;
+}
+
+.converted-from-badge {
+  @apply bg-blue-100 text-blue-800 py-[3px] px-[12px] rounded-full w-fit font-semibold cursor-pointer;
+}
+
+.item-input {
+  @apply border-b border-solid focus:border-primary outline-none;
+}
+
+/* ItemTable: description spacing (wins even if utilities are !important) */
+.item-desc-spacing {
+  margin-top: var(--item-desc-mt, 0px) !important;
+}
+
+body {
+  margin: 0;
+  font-family:
+    'Instrument Sans',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    'Roboto',
+    'Oxygen',
+    'Ubuntu',
+    'Cantarell',
+    'Fira Sans',
+    'Droid Sans',
+    'Helvetica Neue',
+    sans-serif;
+}
+
+/* (Charts removed) */
+
+:root {
+  --background-gray: #f4f3f4;
+  --orange: var(--primary-500);
+  --text-gray: #757172;
+  --text-red: #ff0000;
+
+  --white: #ffffff;
+  --yellow: #eab308;
+  --red: #ef4444;
+  --green: #22c55e;
+
+  /* Sidebar Colors - Light Theme */
+  --sidebar-bg: #404040;
+  --sidebar-border: #262626;
+  --menu-hover-bg: #525252;
+  --menu-selected-bg: #3b82f6;
+  --menu-selected-color: #ffffff;
+
+  /* Sidebar Colors - Dark Theme */
+  --sidebar-bg-dark: #1f2937;
+  --sidebar-border-dark: #374151;
+  --menu-hover-bg-dark: #374151;
+  --menu-selected-bg-dark: #1e40af;
+  --menu-selected-color-dark: #ffffff;
+}
+
+.dashboard-card {
+  .ant-card-head {
+    border-bottom: 1px solid #e5e7eb;
+    padding: 16px 24px;
+  }
+
+  .ant-card-body {
+    padding: 24px;
+  }
+}
+
+.filters-open {
+  animation: filtersOpen 280ms ease-out;
+  overflow: hidden;
+}
+
+@keyframes filtersOpen {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 600px;
+  }
+}
+
+.discount-input .ant-input-group-addon .ant-select {
+  margin-bottom: 0px !important;
+}
+
+/* Toast/Message - fixed width to prevent overly long messages */
+.ant-message-notice-content {
+  max-width: min(420px, 90vw) !important;
+  word-wrap: break-word;
+}
+/* .ant-tag {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+  font-weight: 500;
+} */
+.ant-modal {
+  transform-origin: center center !important;
+}

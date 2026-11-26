@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+
+npx lint-staged
+
+echo "Running build before commit..."
+npm run build || {
+  echo "Build failed. Commit aborted."
+  exit 1
+}

@@ -1,0 +1,116 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # ---- merge-flow gate ----
+      # Flow is env/test -> staging -> main. Every non-merge commit on main must already
+      # exist on staging. If any skipped staging, stop here: nothing is built or deployed.
+      # Fix by promoting properly (staging first); this then passes on the next run.
+      - name: Verify main was promoted from staging
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data } = await github.rest.repos.compareCommitsWithBasehead({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              basehead: `staging...${context.sha}`,
+            });
+            // Merge commits are how promotion happens; release-guard[bot] commits are
+            // automatic reverts made by the guard workflows. Neither counts as skipping.
+            const skipped = data.commits.filter(
+              c => c.parents.length < 2 && c.commit.author?.name !== 'release-guard[bot]',
+            );
+            if (skipped.length) {
+              const list = skipped
+                .slice(0, 20)
+                .map(c => `  ${c.sha.slice(0, 7)} ${c.commit.message.split('\n')[0]}`)
+                .join('\n');
+              core.setFailed(
+                `main has ${skipped.length} commit(s) that are not on staging - they skipped the ` +
+                  `env/test -> staging -> main flow, so this deploy is blocked:\n${list}\n` +
+                  `Merge them into staging first, then promote staging again.`,
+              );
+            } else {
+              core.info('✅ Every change on main came through staging.');
+            }
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Generate version tag
+        id: version
+        run: echo "TAG=$(date +'%Y.%m.%d').${{ github.run_number }}" >> $GITHUB_OUTPUT
+
+      # Single source of truth: EVERY GitHub Actions variable (repo, org and
+      # environment level) is written to .env.production, which Vite loads
+      # automatically during `npm run build`. Adding a new variable = add it in
+      # Settings -> Secrets and variables -> Actions -> Variables. Nothing else.
+      # Values are JSON-quoted so spaces, #, = and newlines survive intact.
+      - name: Generate .env.production from repo variables
+        env:
+          VARS_JSON: ${{ toJSON(vars) }}
+        run: |
+          set -euo pipefail
+          echo "$VARS_JSON" \
+            | jq -r 'to_entries[] | "\(.key)=\(.value | tostring | @json)"' \
+            > .env.production
+          if [ ! -s .env.production ]; then
+            echo "::error::No Actions variables found - the build would ship with empty config."
+            exit 1
+          fi
+          echo "Injected variables:"
+          cut -d= -f1 .env.production
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          build-args: NPM_TOKEN=${{ secrets.NPM_TOKEN }}
+          tags: |
+            ghcr.io/abss-india/${{ github.event.repository.name }}:${{ steps.version.outputs.TAG }}
+            ghcr.io/abss-india/${{ github.event.repository.name }}:latest
+
+      # ---- deploy ----
+      # Steps run in order and the job stops at the first failure, so this only
+      # runs when the build-and-push above succeeded. `if: success()` is the
+      # default; it is written out so the guarantee is visible when reading.
+      - name: Configure AWS credentials
+        if: success()
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1
+
+      # Cluster: arn:aws:eks:ap-south-1:200096189037:cluster/abss-prod
+      # The deployment is named after the repository, matching the image name.
+      - name: Restart deployment on EKS
+        if: success()
+        env:
+          AWS_REGION: ap-south-1
+          EKS_CLUSTER: abss-prod
+          K8S_NAMESPACE: abss-prod
+          DEPLOYMENT: ${{ github.event.repository.name }}
+        run: |
+          set -euo pipefail
+          aws eks update-kubeconfig --region "$AWS_REGION" --name "$EKS_CLUSTER"
+          kubectl -n "$K8S_NAMESPACE" rollout restart "deployment/$DEPLOYMENT"
+          kubectl -n "$K8S_NAMESPACE" rollout status "deployment/$DEPLOYMENT" --timeout=5m

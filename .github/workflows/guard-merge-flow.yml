@@ -1,0 +1,76 @@
+name: Guard Merge Flow
+
+# Enforces the promotion order:  env/test  ->  staging  ->  main
+#
+#   - A PR into `staging` must come from `env/test`.
+#   - A PR into `main`    must come from `staging`.
+#
+# Any other PR into staging/main (e.g. env/test -> main, or a feature branch -> main) fails
+# this check, gets a comment explaining the correct flow, and is closed automatically, so it
+# cannot be merged by mistake. Retargeting an open PR to main/staging re-runs the check
+# (`edited`), and reopening a closed one closes it again.
+#
+# The deploy workflows (docker-build.yml for main, deploy-staging.yml for staging) also
+# refuse to deploy if the branch contains commits that skipped a step, which covers direct
+# pushes that never went through a PR.
+#
+# Keep ALLOWED_SOURCE identical in every repo that uses this flow.
+
+on:
+  pull_request:
+    types: [opened, reopened, edited, synchronize]
+    branches:
+      - main
+      - staging
+
+permissions:
+  pull-requests: write
+  issues: write
+
+jobs:
+  check-source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check PR source branch
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const ALLOWED_SOURCE = {
+              main: 'staging',
+              staging: 'env/test',
+            };
+            const pr = context.payload.pull_request;
+            const target = pr.base.ref;
+            const expected = ALLOWED_SOURCE[target];
+            const source = pr.head.ref;
+            const sameRepo = pr.head.repo?.full_name === pr.base.repo.full_name;
+
+            if (source === expected && sameRepo) {
+              core.info(`✅ ${source} -> ${target} follows the merge flow.`);
+              return;
+            }
+
+            const body =
+              `⛔ **Wrong merge flow — this PR has been closed.**\n\n` +
+              `\`${target}\` only accepts PRs from \`${expected}\`, but this PR is from ` +
+              `\`${sameRepo ? source : pr.head.label}\`.\n\n` +
+              `The required flow is:\n\n` +
+              '```\nenv/test  ->  staging  ->  main\n```\n\n' +
+              `To release these changes:\n` +
+              `1. Merge into \`env/test\` (if not already there).\n` +
+              `2. Open a PR \`env/test -> staging\` and merge it.\n` +
+              `3. Open a PR \`staging -> main\` and merge it.`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body,
+            });
+            await github.rest.pulls.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              state: 'closed',
+            });
+            core.setFailed(`${target} only accepts PRs from ${expected}; got ${source}.`);
